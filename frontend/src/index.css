@@ -1,0 +1,24 @@
+@import "tailwindcss";
+
+html, body, #root {
+  height: 100%;
+}
+
+body {
+  @apply bg-slate-100 text-slate-800;
+  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+}
+
+.markdown-body {
+  line-height: 1.6;
+  white-space: pre-wrap;
+}
+.markdown-body h1 {
+  @apply text-2xl font-bold text-slate-900 mb-1;
+}
+.markdown-body h2 {
+  @apply text-lg font-bold text-slate-900 mt-6 mb-2 border-b border-slate-200 pb-1;
+}
+.markdown-body h3 {
+  @apply text-base font-semibold mt-4 mb-1;
+}

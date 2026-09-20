@@ -1,0 +1,20 @@
+# Dependencias e instalables
+node_modules/
+
+# Base de datos local
+backend/data/*.db
+backend/data/*.db-journal
+backend/data/*.db-wal
+backend/data/*.db-shm
+
+# Entornos
+.env
+backend/.env
+frontend/.env.local
+
+# Builds
+frontend/dist/
+
+# Logs y misc
+*.log
+.DS_Store

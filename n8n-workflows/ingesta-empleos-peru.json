@@ -1,0 +1,101 @@
+{
+  "name": "Ingesta Empleos Perú (borrador)",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours",
+              "hoursInterval": 12
+            }
+          ]
+        }
+      },
+      "id": "schedule-empleos",
+      "name": "Cada 12 horas",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [0, 0]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "PLACEHOLDER: URL de la bolsa de empleos a integrar"
+      },
+      "id": "http-fetch-empleos",
+      "name": "Descargar listado",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [220, 0]
+    },
+    {
+      "parameters": {
+        "ndvExecuteUrl": "",
+        "jsCode": "// PLACEHOLDER: transformar el listado descargado en un array de ofertas\n// con la misma forma que espera el webhook de ingesta:\n// [{ external_id, titulo, entidad, ubicacion, sueldo, modalidad, tipo_contrato,\n//    duracion, penalizacion, rubro, departamento, disponible_candidato_usuario,\n//    fecha_publicacion, fecha_cierre, source_url, texto_completo }]\nreturn [{ external_id: 'PLACEHOLDER-1', titulo: 'Oferta de ejemplo', entidad: 'Entidad' }]"
+      },
+      "id": "code-normalize",
+      "name": "Normalizar a formato webhook",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [440, 0]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            { "id": "amap1", "name": "source_key", "value": "=\"empleos-peru\"" },
+            { "id": "amap2", "name": "offers", "value": "={{ $json.body }}" },
+            { "id": "amap3", "name": "raw", "value": "={{ JSON.stringify($json) }}" }
+          ]
+        }
+      },
+      "id": "set-payload",
+      "name": "Estandarizar payload",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [660, 0]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://localhost:4000/api/webhook/ingest",
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "x-webhook-secret",
+              "value": "=" + "{{ $env.WEBHOOK_SECRET || 'cambiar' }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ source_key: $json.source_key, offers: $json.offers, raw: $json.raw }) }}"
+      },
+      "id": "http-post-ingest",
+      "name": "Enviar al webhook del backend",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [880, 0]
+    }
+  ],
+  "connections": {
+    "Cada 12 horas": {
+      "main": [[{ "node": "Descargar listado", "type": "main", "index": 0 }]]
+    },
+    "Descargar listado": {
+      "main": [[{ "node": "Normalizar a formato webhook", "type": "main", "index": 0 }]]
+    },
+    "Normalizar a formato webhook": {
+      "main": [[{ "node": "Estandarizar payload", "type": "main", "index": 0 }]]
+    },
+    "Estandarizar payload": {
+      "main": [[{ "node": "Enviar al webhook del backend", "type": "main", "index": 0 }]]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {},
+  "active": false
+}
