@@ -4,6 +4,10 @@
     {
       "source": "/api/(.*)",
       "destination": "https://buscador-inteligente-de-convocatorias.onrender.com/api/$1"
+    },
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
     }
   ]
 }
