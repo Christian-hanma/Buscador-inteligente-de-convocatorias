@@ -32,7 +32,7 @@
     {
       "parameters": {
         "ndvExecuteUrl": "",
-        "jsCode": "// PLACEHOLDER: transformar el listado descargado en un array de ofertas\n// con la misma forma que espera el webhook de ingesta:\n// [{ external_id, titulo, entidad, ubicacion, sueldo, modalidad, tipo_contrato,\n//    duracion, penalizacion, rubro, departamento, disponible_candidato_usuario,\n//    fecha_publicacion, fecha_cierre, source_url, texto_completo }]\nreturn [{ external_id: 'PLACEHOLDER-1', titulo: 'Oferta de ejemplo', entidad: 'Entidad' }]"
+        "jsCode": "// PLACEHOLDER: transformar el listado descargado en un array de ofertas\n// con la MISMA forma del webhook de ingesta (claves en ingles, formato plano):\n// [{ external_id, title, company, salary, location, modality, contract_type,\n//    duration, penalization, description, publication_date, closing_date, source_url }]\n// source debe coincidir con el 'key' de job_sources en la BD.\nreturn [{ external_id: 'PLACEHOLDER-1', title: 'Oferta de ejemplo', company: 'Entidad' }]"
       },
       "id": "code-normalize",
       "name": "Normalizar a formato webhook",
@@ -42,41 +42,25 @@
     },
     {
       "parameters": {
-        "assignments": {
-          "assignments": [
-            { "id": "amap1", "name": "source_key", "value": "=\"empleos-peru\"" },
-            { "id": "amap2", "name": "offers", "value": "={{ $json.body }}" },
-            { "id": "amap3", "name": "raw", "value": "={{ JSON.stringify($json) }}" }
-          ]
-        }
-      },
-      "id": "set-payload",
-      "name": "Estandarizar payload",
-      "type": "n8n-nodes-base.set",
-      "typeVersion": 3.4,
-      "position": [660, 0]
-    },
-    {
-      "parameters": {
         "method": "POST",
-        "url": "http://localhost:4000/api/webhook/ingest",
+        "url": "https://buscador-inteligente-de-convocatorias.onrender.com/api/webhook/ingest",
         "headerParameters": {
           "parameters": [
             {
               "name": "x-webhook-secret",
-              "value": "=" + "{{ $env.WEBHOOK_SECRET || 'cambiar' }}"
+              "value": "=" + "{{ $env.WEBHOOK_SECRET || 'dev-webhook-secret' }}"
             }
           ]
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ source_key: $json.source_key, offers: $json.offers, raw: $json.raw }) }}"
+        "jsonBody": "={{ JSON.stringify(Object.assign({ source: 'empleos-peru' }, $json)) }}"
       },
       "id": "http-post-ingest",
       "name": "Enviar al webhook del backend",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [880, 0]
+      "position": [660, 0]
     }
   ],
   "connections": {
@@ -87,9 +71,6 @@
       "main": [[{ "node": "Normalizar a formato webhook", "type": "main", "index": 0 }]]
     },
     "Normalizar a formato webhook": {
-      "main": [[{ "node": "Estandarizar payload", "type": "main", "index": 0 }]]
-    },
-    "Estandarizar payload": {
       "main": [[{ "node": "Enviar al webhook del backend", "type": "main", "index": 0 }]]
     }
   },

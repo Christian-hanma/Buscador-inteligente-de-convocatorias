@@ -35,7 +35,7 @@
         "sourceMain": "{{ $json.body }}",
         "extractionValues": [
           {
-            "fieldName": "titulo",
+            "fieldName": "title",
             "extractionType": "regex",
             "regex": "PLACEHOLDER: SELECTOR HTML DEL TITULO"
           }
@@ -49,41 +49,25 @@
     },
     {
       "parameters": {
-        "assignments": {
-          "assignments": [
-            { "id": "amap", "name": "source_key", "value": "=\"talento-peru\"" },
-            { "id": "amap2", "name": "offers", "value": "={{ $json.body }}" },
-            { "id": "amap3", "name": "raw", "value": "={\"url\":\"{{ $json.url }}\"}" }
-          ]
-        }
-      },
-      "id": "normalize-talento",
-      "name": "Estandarizar payload",
-      "type": "n8n-nodes-base.set",
-      "typeVersion": 3.4,
-      "position": [660, 0]
-    },
-    {
-      "parameters": {
         "method": "POST",
-        "url": "http://localhost:4000/api/webhook/ingest",
+        "url": "https://buscador-inteligente-de-convocatorias.onrender.com/api/webhook/ingest",
         "headerParameters": {
           "parameters": [
             {
               "name": "x-webhook-secret",
-              "value": "=" + "{{ $env.WEBHOOK_SECRET || 'cambiar' }}"
+              "value": "=" + "{{ $env.WEBHOOK_SECRET || 'dev-webhook-secret' }}"
             }
           ]
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ source_key: $json.source_key, offers: $json.offers, raw: $json.raw }) }}"
+        "jsonBody": "={{ JSON.stringify(Object.assign({ source: 'empleos-peru', external_id: String($json.title || $json.url).slice(0, 200), title: $json.title, description: $json.body || '' }, $json)) }}"
       },
       "id": "http-post-ingest",
       "name": "Enviar al webhook del backend",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [880, 0]
+      "position": [660, 0]
     }
   ],
   "connections": {
@@ -94,9 +78,6 @@
       "main": [[{ "node": "Parsear ofertas (placeholder)", "type": "main", "index": 0 }]]
     },
     "Parsear ofertas (placeholder)": {
-      "main": [[{ "node": "Estandarizar payload", "type": "main", "index": 0 }]]
-    },
-    "Estandarizar payload": {
       "main": [[{ "node": "Enviar al webhook del backend", "type": "main", "index": 0 }]]
     }
   },

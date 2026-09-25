@@ -6,39 +6,36 @@ Los `job_offers` llegan al sistema por **dos caminos**:
 
 `POST /api/webhook/ingest` con header `x-webhook-secret`.
 
-- La fuente se identifica por `source_key` (columna `key` de `job_sources`, por ejemplo
-  `talento-peru`, `empleos-peru`). Si `key` no existe → 404.
-- Cada oferta del array `offers[]` se valida con zod (`ingestion.service.js`); las
-  inválidas se ignoran y se acumulan en `skipped` (no rompen el lote).
-- **Dedupe**: `(source_id, external_id)` único. Duplicados → `skipped`, no se duplica en BD.
-- Lote con `external_id` para cada oferta permite re-envíos idempotentes.
+- La fuente se identifica por `source` (columna `key` de `job_sources`). Si `key` no
+  existe → 422.
+- El payload es un objeto **plano** (una oferta por petición). Se valida con zod
+  (`ingestion.service.js`); campos opcionales marcados.
+- **Dedupe**: `(source_id, external_id)` único. Duplicados → respuesta `deduplicated:true`,
+  no se duplica en BD. Re-envíos idempotentes.
 
 Payload de oferta (campos opcionales marcados):
 
 ```json
 {
-  "source_key": "talento-peru",
-  "raw": { "url": "https://..." },
-  "offers": [{
-    "external_id": "TU-123-2026",
-    "titulo": "Especialista en Contabilidad (CAS)",
-    "entidad": "Municipalidad de Lima",
-    "ubicacion": "Lima",
-    "sueldo": 3800,
-    "modalidad": "presencial",
-    "tipo_contrato": "cas",
-    "duracion": 6,
-    "penalizacion": false,
-    "rubro": "Contabilidad",
-    "departamento": "Lima",
-    "disponible_candidato_usuario": true,
-    "fecha_publicacion": "2026-09-01",
-    "fecha_cierre": "2026-09-30",
-    "source_url": "https://...",
-    "texto_completo": "Descripción completa..."
-  }]
+  "source": "empleos-peru",
+  "external_id": "TU-123-2026",
+  "title": "Especialista en Contabilidad (CAS)",
+  "company": "Municipalidad de Lima",
+  "location": "Lima",
+  "salary": 3800,
+  "modality": "presencial",
+  "contract_type": "CAS",
+  "duration": 6,
+  "penalization": false,
+  "description": "Descripción completa...",
+  "publication_date": "2026-09-01",
+  "closing_date": "2026-09-30",
+  "source_url": "https://..."
 }
 ```
+
+Nota: los workflow de borrador en `n8n-workflows/*.json` ya emiten este formato plano a la
+URL de producción.
 
 ## 2. Semilla de desarrollo (`npm run seed`)
 
