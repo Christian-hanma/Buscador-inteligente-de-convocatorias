@@ -15,7 +15,7 @@ export async function authenticate(req, res, next) {
   } catch {
     throw new HttpError(401, 'Token inválido o expirado');
   }
-  const user = usersRepository.findById(payload.sub);
+  const user = await usersRepository.findById(payload.sub);
   if (!user) {
     throw new HttpError(401, 'Usuario no existe');
   }

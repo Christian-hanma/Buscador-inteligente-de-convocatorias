@@ -16,12 +16,12 @@ router.post('/generate', validateBody(generateSchema), async (req, res) => {
   res.status(201).json(result);
 });
 
-router.get('/', (req, res) => {
-  res.json(listCvs(req.user.id));
+router.get('/', async (req, res) => {
+  res.json(await listCvs(req.user.id));
 });
 
-router.get('/:id', (req, res) => {
-  res.json(getCv(req.user.id, Number(req.params.id)));
+router.get('/:id', async (req, res) => {
+  res.json(await getCv(req.user.id, Number(req.params.id)));
 });
 
 export default router;

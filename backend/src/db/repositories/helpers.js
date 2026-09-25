@@ -1,36 +1,42 @@
-import { db } from '../connection.js';
+import { pool } from '../connection.js';
 
+/** pg no acepta `undefined` como parámetro; lo normaliza a `null`. */
 function bind(params = []) {
-  return params.map((p) => {
-    if (p === undefined) return null;
-    if (typeof p === 'boolean') return p ? 1 : 0;
-    return p;
-  });
+  return params.map((p) => (p === undefined ? null : p));
 }
 
-export function all(sql, params = []) {
-  return db.prepare(sql).all(...bind(params));
+/** Convierte marcadores `?` (estilo SQLite) a `$1, $2, …` (pg). */
+function toParams(sql, params = []) {
+  if (!params.length) return sql;
+  let idx = 0;
+  return sql.replace(/\?/g, () => `$${++idx}`);
 }
 
-export function get(sql, params = []) {
-  return db.prepare(sql).get(...bind(params));
+/** Ejecuta un SELECT y devuelve todas las filas. */
+export async function all(sql, params = []) {
+  const { rows } = await pool.query(toParams(sql, params), bind(params));
+  return rows;
 }
 
-export function run(sql, params = []) {
-  const result = db.prepare(sql).run(...bind(params));
-  return { changes: result.changes, lastInsertRowid: Number(result.lastInsertRowid) };
+/** Ejecuta un SELECT y devuelve la primera fila (o undefined). */
+export async function get(sql, params = []) {
+  const { rows } = await pool.query(toParams(sql, params), bind(params));
+  return rows[0];
 }
 
-/** Convierte filas de SQLite a objetos planos (JSON limpio para la API). */
+/** Ejecuta INSERT/UPDATE/DELETE. Devuelve { changes, lastInsertRowid }. */
+export async function run(sql, params = []) {
+  const res = await pool.query(toParams(sql, params), bind(params));
+  return {
+    changes: res.rowCount ?? 0,
+    lastInsertRowid: res.rows?.[0]?.id ?? null,
+  };
+}
+
 export function rowToJson(row) {
-  if (row === undefined || row === null) return row;
-  const out = {};
-  for (const [key, value] of Object.entries(row)) {
-    out[key] = value;
-  }
-  return out;
+  return row ?? null;
 }
 
 export function rowsToJson(rows = []) {
-  return rows.map(rowToJson);
+  return rows ?? [];
 }

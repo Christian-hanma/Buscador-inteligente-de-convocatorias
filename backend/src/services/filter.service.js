@@ -26,7 +26,7 @@ export function evaluateHardFilters({ config, offer }) {
     reasons.push(`Sueldo (S/ ${offer.sueldo}) supera el máximo configurado (S/ ${sueldoMax})`);
   }
 
-  if (config.excluir_penalizaciones === 1 && offer.penalizacion === 1) {
+  if (config.excluir_penalizaciones === true && offer.penalizacion === true) {
     reasons.push('Oferta con penalización contractual (excluida por tu configuración)');
   }
 

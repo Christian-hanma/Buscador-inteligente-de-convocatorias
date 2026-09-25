@@ -23,28 +23,24 @@ const configSchema = z.object({
 function shapeForDb(validated) {
   return {
     ...validated,
-    ubicaciones_preferidas: validated.ubicaciones_preferidas
-      ? JSON.stringify(validated.ubicaciones_preferidas)
-      : undefined,
-    excluir_penalizaciones: validated.excluir_penalizaciones === undefined
-      ? undefined
-      : validated.excluir_penalizaciones ? 1 : 0,
+    ubicaciones_preferidas: validated.ubicaciones_preferidas ?? undefined,
+    excluir_penalizaciones: validated.excluir_penalizaciones ?? undefined,
   };
 }
 
-router.get('/', (req, res) => {
-  const config = getConfig(req.user.id);
-  res.json({ ...config, ubicaciones_preferidas: JSON.parse(config.ubicaciones_preferidas || '[]') });
+router.get('/', async (req, res) => {
+  const config = await getConfig(req.user.id);
+  res.json(config);
 });
 
-router.post('/', validateBody(configSchema), (req, res) => {
-  const config = upsertConfig(req.user.id, shapeForDb(req.validated));
-  res.status(201).json({ ...config, ubicaciones_preferidas: JSON.parse(config.ubicaciones_preferidas || '[]') });
+router.post('/', validateBody(configSchema), async (req, res) => {
+  const config = await upsertConfig(req.user.id, shapeForDb(req.validated));
+  res.status(201).json(config);
 });
 
-router.put('/', validateBody(configSchema), (req, res) => {
-  const config = upsertConfig(req.user.id, shapeForDb(req.validated));
-  res.json({ ...config, ubicaciones_preferidas: JSON.parse(config.ubicaciones_preferidas || '[]') });
+router.put('/', validateBody(configSchema), async (req, res) => {
+  const config = await upsertConfig(req.user.id, shapeForDb(req.validated));
+  res.json(config);
 });
 
 export default router;

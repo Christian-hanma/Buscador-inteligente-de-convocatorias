@@ -27,7 +27,7 @@ function toUnixOrNull(iso) {
   return Number.isNaN(t) ? iso : new Date(t).toISOString().slice(0, 10);
 }
 
-export function ingestOffer(payload) {
+export async function ingestOffer(payload) {
   const parsed = ingestSchema.safeParse(payload ?? {});
   if (!parsed.success) {
     const details = parsed.error.issues.map((i) => `${i.path.join('.')}: ${i.message}`);
@@ -35,12 +35,12 @@ export function ingestOffer(payload) {
   }
 
   const data = parsed.data;
-  const source = sourcesRepository.findByKey(data.source);
+  const source = await sourcesRepository.findByKey(data.source);
   if (!source) {
     throw new HttpError(422, `Fuente desconocida: "${data.source}". Debe estar registrada en job_sources.`);
   }
 
-  const result = offersRepository.upsert({
+  const result = await offersRepository.upsert({
     source_id: source.id,
     external_id: data.external_id,
     titulo: data.title,
@@ -50,7 +50,7 @@ export function ingestOffer(payload) {
     modalidad: data.modality,
     tipo_contrato: data.contract_type,
     duracion: data.duration,
-    penalizacion: data.penalization ? 1 : 0,
+    penalizacion: data.penalization === true,
     fuente: source.name,
     source_url: data.source_url || null,
     fecha_publicacion: toUnixOrNull(data.publication_date),

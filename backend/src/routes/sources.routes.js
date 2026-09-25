@@ -11,16 +11,16 @@ const updateSchema = z.object({
   source_ids: z.array(z.number().int().positive()).max(100),
 });
 
-router.get('/', (req, res) => {
-  res.json(listSources(req.user.id));
+router.get('/', async (req, res) => {
+  res.json(await listSources(req.user.id));
 });
 
-router.get('/user', (req, res) => {
-  res.json(getUserSources(req.user.id));
+router.get('/user', async (req, res) => {
+  res.json(await getUserSources(req.user.id));
 });
 
-router.put('/user', validateBody(updateSchema), (req, res) => {
-  res.json(updateUserSources(req.user.id, req.validated.source_ids));
+router.put('/user', validateBody(updateSchema), async (req, res) => {
+  res.json(await updateUserSources(req.user.id, req.validated.source_ids));
 });
 
 export default router;

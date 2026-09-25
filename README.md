@@ -18,16 +18,18 @@ Registrate → Carga tu perfil y CV → Configura tus preferencias → Seleccion
 ## Estructura
 
 ```
-├── backend/        API REST (Node + Express + SQLite vía node:sqlite)
+├── backend/        API REST (Node + Express + PostgreSQL / Supabase)
 ├── frontend/       SPA (React + Vite + TypeScript + Tailwind CSS)
 ├── n8n-workflows/  Workflows JSON de ejemplo para ingesta
 ├── docs/           Documentación (arquitectura, API, matching, CV, ingesta)
+├── vercel.json     Rewrite /api/* → backend (deploy del frontend en Vercel)
 └── README.md
 ```
 
 ## Requisitos
 
-- Node.js **≥ 22.13** (se usa el módulo nativo `node:sqlite`)
+- Node.js **≥ 20** (proyecto ESM)
+- Un proyecto **Supabase** (opcional para desarrollo local: se puede usar cualquier PostgreSQL)
 - npm (cualquier versión moderna)
 
 > **Nota Windows (esta máquina):** la variable de entorno `ComSpec` está corrupta y rompe
@@ -41,15 +43,18 @@ Registrate → Carga tu perfil y CV → Configura tus preferencias → Seleccion
 
 ```bash
 cd backend
-cp .env.example .env          # editar si se desea, no es obligatorio para prueba
+cp .env.example .env          # y pega tu DATABASE_URL de Supabase
 npm install
-npm run seed                  # crea esquema + datos de prueba
+npm run seed                  # migra el esquema + datos de prueba
 npm run dev                   # arranca en http://localhost:4000
 ```
 
-> Si no hay `OPENAI_API_KEY`, el sistema usa un **modo mock** determinístico para poder
-> demostrar matching y CV adaptado sin costos. Con una clave real, edita `.env`
-> (`OPENAI_MODEL`, `OPENAI_API_KEY`).
+> **Base de datos:** el backend usa PostgreSQL (Supabase). Pon en `backend/.env` la cadena
+> del **Session pooler** (puerto 5432, formato `aws-0-<region>.pooler.supabase.com`); la
+> conexión directa `db.<ref>.supabase.co` solo expone IPv6 y falla en redes sin IPv6.
+> Las tablas se crean en el schema `convocatorias` (no toca lo que ya exista en Supabase).
+> Sin `OPENAI_API_KEY`, el sistema usa un **modo mock** determinístico para demostrar
+> matching y CV adaptado sin costos.
 
 ### 2. Frontend
 
@@ -73,7 +78,41 @@ cd backend
 npm run dev        # servidor con recarga (node --watch)
 npm run seed       # reset + crear esquema y datos de prueba
 npm start          # servidor en producción
+npm run db:reset   # solo borrar y recrear el esquema
 ```
+
+## Despliegue (producción)
+
+### Backend → Render
+
+1. Conecta el repo de GitHub en **Render → New → Web Service**.
+2. Type: **Node**, Build: `npm install`, Start: `npm start`.
+3. En **Environment**, agrega:
+   - `DATABASE_URL` = cadena **Session pooler** de Supabase (puerto 5432).
+   - `DATABASE_SCHEMA=convocatorias`
+   - `JWT_SECRET` (genera uno largo al azar)
+   - `WEBHOOK_SECRET` (el mismo que usarán los workflows de n8n)
+   - `OPENAI_API_KEY` (opcional; vacío = modo mock)
+   - `FRONTEND_URL` = URL de tu frontend en Vercel
+4. Despliega. En el primer arranque la app corre las migraciones automáticamente.
+
+### Frontend → Vercel (ya conectado)
+
+Edita `vercel.json` en la raíz y reemplaza el valor de `destination` por la URL que
+Render te asigne, por ejemplo:
+
+```json
+{
+  "rewrites": [{ "source": "/api/(.*)", "destination": "https://convocatorias-api.onrender.com/api/$1" }]
+}
+```
+
+Re-despliega el frontend. Todo el tráfico `/api/*` se reenviará al backend.
+
+### Ingesta (n8n)
+
+Con el backend en producción, los workflows de `n8n-workflows/` deben apuntar a
+`POST https://<backend>/api/webhook/ingest` con header `x-webhook-secret`.
 
 ## Documentación
 

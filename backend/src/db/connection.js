@@ -1,13 +1,34 @@
-import fs from 'node:fs';
-import path from 'node:path';
-import { DatabaseSync } from 'node:sqlite';
+import pg from 'pg';
 import { env } from '../config/env.js';
 
-fs.mkdirSync(path.dirname(env.DATABASE_PATH), { recursive: true });
+if (!env.DATABASE_URL) {
+  throw new Error(
+    'Falta DATABASE_URL en backend/.env. Copia la cadena "Session pooler" ' +
+      '(puerto 5432) desde Supabase → Project Settings → Database → Connection string.'
+  );
+}
 
-export const db = new DatabaseSync(env.DATABASE_PATH);
+export const pool = new pg.Pool({
+  connectionString: env.DATABASE_URL,
+  ssl: { rejectUnauthorized: false },
+  max: 10,
+  idleTimeoutMillis: 30000,
+  connectionTimeoutMillis: 10000,
+});
 
-db.exec('PRAGMA foreign_keys = ON;');
-db.exec('PRAGMA journal_mode = WAL;');
+// Supabase (Supavisor) ignora el parámetro `options` de la URL, así que
+// fijamos search_path en CADA conexión nueva. Sin esto los INSERT/DROP
+// con nombre corto caen en `public` y las tablas viven en `convocatorias`.
+const schemaOk = /^[A-Za-z_][A-Za-z0-9_]*$/.test(env.DATABASE_SCHEMA);
+if (!schemaOk) {
+  throw new Error(`DATABASE_SCHEMA inválido: ${env.DATABASE_SCHEMA}`);
+}
+pool.on('connect', (client) => {
+  client.query(`SET search_path TO ${env.DATABASE_SCHEMA}, public`).catch((err) => {
+    console.error('[db] no se pudo fijar search_path:', err.message);
+  });
+});
 
-export { DatabaseSync };
+pool.on('error', (err) => console.error('[db] error de pool inesperado:', err.message));
+
+export { pg };

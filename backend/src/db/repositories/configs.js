@@ -1,22 +1,22 @@
 import { get, run, rowToJson } from './helpers.js';
 
 export const configsRepository = {
-  findByUserId(userId) {
-    return rowToJson(get('SELECT * FROM config_filtros WHERE user_id = ?', [userId]));
+  async findByUserId(userId) {
+    return rowToJson(await get('SELECT * FROM config_filtros WHERE user_id = ?', [userId]));
   },
 
-  createDefault(userId) {
-    const { lastInsertRowid } = run(
-      `INSERT INTO config_filtros (user_id) VALUES (?)`,
+  async createDefault(userId) {
+    const { lastInsertRowid } = await run(
+      `INSERT INTO config_filtros (user_id) VALUES (?) RETURNING id`,
       [userId]
     );
-    return rowToJson(get('SELECT * FROM config_filtros WHERE id = ?', [lastInsertRowid]));
+    return rowToJson(await get('SELECT * FROM config_filtros WHERE id = ?', [lastInsertRowid]));
   },
 
-  upsert(userId, data) {
-    const existing = get('SELECT id FROM config_filtros WHERE user_id = ?', [userId]);
+  async upsert(userId, data) {
+    const existing = await get('SELECT id FROM config_filtros WHERE user_id = ?', [userId]);
     if (!existing) {
-      this.createDefault(userId);
+      await this.createDefault(userId);
     }
     const allowed = [
       'sueldo_minimo', 'sueldo_maximo', 'radio_zona', 'ubicaciones_preferidas',
@@ -32,8 +32,8 @@ export const configsRepository = {
           ? JSON.stringify(value)
           : value;
       });
-      run(
-        `UPDATE config_filtros SET ${sets}, updated_at = datetime('now') WHERE user_id = ?`,
+      await run(
+        `UPDATE config_filtros SET ${sets}, updated_at = now() WHERE user_id = ?`,
         [...values, userId]
       );
     }

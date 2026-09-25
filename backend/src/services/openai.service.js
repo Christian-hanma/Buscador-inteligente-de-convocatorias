@@ -2,6 +2,7 @@ import OpenAI from 'openai';
 import { env } from '../config/env.js';
 import { clampScore } from '../config/score.js';
 import { mockEvaluateForOffer, mockAdaptCv } from './ai/mock.provider.js';
+import { parseJson } from '../utils/index.js';
 
 /** Proveedor mock/humano determinístico: documenta el modo en el resultado. */
 export const AI_MODE = env.OPENAI_USE_MOCK || !env.OPENAI_API_KEY ? 'mock' : 'openai';
@@ -109,7 +110,7 @@ function buildMatchingPrompt({ profile, config, offer }) {
     JSON.stringify({
       sueldo_minimo: config.sueldo_minimo,
       sueldo_maximo: config.sueldo_maximo,
-      ubicaciones_preferidas: JSON.parse(config.ubicaciones_preferidas || '[]'),
+      ubicaciones_preferidas: parseJson(config.ubicaciones_preferidas, []),
       duracion_min_meses: config.duracion_min_meses,
       duracion_max_meses: config.duracion_max_meses,
       excluir_penalizaciones: config.excluir_penalizaciones,
@@ -126,7 +127,7 @@ function buildMatchingPrompt({ profile, config, offer }) {
       modalidad: offer.modalidad,
       tipo_contrato: offer.tipo_contrato,
       duracion_meses: offer.duracion,
-      penalizacion: offer.penalizacion === 1,
+      penalizacion: offer.penalizacion === true,
       texto_completo: offer.texto_completo,
     }, null, 2),
   ].join('\n');

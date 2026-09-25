@@ -18,10 +18,14 @@ function serializeMatch(match) {
     brechas: parseJson(match.brechas, []),
     fortalezas: parseJson(match.fortalezas, []),
     criterios_evaluados: parseJson(match.criterios_evaluados, {}),
-    via_ia: match.via_ia === 1,
-    notificado: match.notificado === 1,
-    penalizacion: match.penalizacion === 1,
+    via_ia: match.via_ia === true,
+    notificado: match.notificado === true,
+    penalizacion: match.penalizacion === true,
   };
+}
+
+function serializeOffer(offer) {
+  return { ...offer, penalizacion: offer.penalizacion === true };
 }
 
 /**
@@ -31,19 +35,19 @@ function serializeMatch(match) {
  *   3) notificación por umbral
  */
 export async function evaluateOfferForUser(userId, offerId) {
-  const profile = profilesRepository.findByUserId(userId);
+  const profile = await profilesRepository.findByUserId(userId);
   if (!profile) {
     throw new HttpError(400, 'Completa tu perfil profesional antes de evaluar ofertas');
   }
-  const config = configsRepository.findByUserId(userId) || configsRepository.createDefault(userId);
-  const offer = offersRepository.findById(offerId);
+  const config = await configsRepository.findByUserId(userId) || await configsRepository.createDefault(userId);
+  const offer = await offersRepository.findById(offerId);
   if (!offer) throw new HttpError(404, 'Oferta no encontrada');
 
-  const user = usersRepository.findById(userId);
+  const user = await usersRepository.findById(userId);
 
   const hard = evaluateHardFilters({ config, offer });
   if (hard.result === 'REJECT') {
-    const match = matchesRepository.upsert(userId, offerId, {
+    const match = await matchesRepository.upsert(userId, offerId, {
       porcentaje_compatibilidad: 0,
       via_ia: false,
       filtro_resultado: 'REJECT',
@@ -68,7 +72,7 @@ export async function evaluateOfferForUser(userId, offerId) {
   };
   const finalScore = computeFinalScore(subscores, weights);
 
-  const match = matchesRepository.upsert(userId, offerId, {
+  const match = await matchesRepository.upsert(userId, offerId, {
     porcentaje_compatibilidad: finalScore,
     via_ia: aiResult.provider === 'openai',
     filtro_resultado: 'PASS',
@@ -79,13 +83,9 @@ export async function evaluateOfferForUser(userId, offerId) {
     notificado: false,
   });
 
-  const notification = notificationService.evaluateAndNotify({ user, config, offer, match });
+  const notification = await notificationService.evaluateAndNotify({ user, config, offer, match });
 
   return { match: serializeMatch(match), notification, offer: serializeOffer(offer) };
-}
-
-function serializeOffer(offer) {
-  return { ...offer, penalizacion: offer.penalizacion === 1 };
 }
 
 /**
@@ -93,11 +93,11 @@ function serializeOffer(offer) {
  * Con force=false solo evalúa las que aún no tienen resultado (control de costos).
  */
 export async function evaluateOffersForUser(userId, { force = false } = {}) {
-  const selectedIds = userSourcesRepository.enabledSourceIds(userId);
+  const selectedIds = await userSourcesRepository.enabledSourceIds(userId);
   if (!selectedIds.length) {
     throw new HttpError(400, 'Selecciona al menos una fuente laboral para evaluar ofertas');
   }
-  const offers = offersRepository.listBySourceIds(selectedIds);
+  const offers = await offersRepository.listBySourceIds(selectedIds);
   if (!offers.length) {
     return { total: 0, evaluated: [], rejected: [], notified: [] };
   }
@@ -109,7 +109,7 @@ export async function evaluateOffersForUser(userId, { force = false } = {}) {
 
   for (const offer of offers) {
     if (!force) {
-      const existing = matchesRepository.findByUserAndOffer(userId, offer.id);
+      const existing = await matchesRepository.findByUserAndOffer(userId, offer.id);
       if (existing) {
         skipped += 1;
         continue;

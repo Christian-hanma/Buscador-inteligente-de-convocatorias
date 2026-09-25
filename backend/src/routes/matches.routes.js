@@ -24,16 +24,16 @@ router.post('/evaluate', validateBody(evaluateSchema), async (req, res) => {
   return res.json(summary);
 });
 
-router.get('/', (req, res) => {
-  let matches = matchesRepository.listForUser(req.user.id);
+router.get('/', async (req, res) => {
+  let matches = await matchesRepository.listForUser(req.user.id);
   if (req.query.filtro === 'rejected') {
     matches = matches.filter((m) => m.filtro_resultado === 'REJECT');
   }
   res.json(matches);
 });
 
-router.get('/:id', (req, res) => {
-  const match = matchesRepository.findByIdForUser(req.user.id, Number(req.params.id));
+router.get('/:id', async (req, res) => {
+  const match = await matchesRepository.findByIdForUser(req.user.id, Number(req.params.id));
   if (!match) throw new HttpError(404, 'Match no encontrado');
   res.json(match);
 });

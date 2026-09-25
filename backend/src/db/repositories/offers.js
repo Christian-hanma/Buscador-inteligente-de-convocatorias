@@ -6,62 +6,59 @@ const LIST_SQL = `
   LEFT JOIN job_sources s ON s.id = o.source_id
 `;
 
+const COLS = [
+  'source_id', 'external_id', 'titulo', 'entidad', 'sueldo', 'ubicacion', 'modalidad',
+  'tipo_contrato', 'duracion', 'penalizacion', 'fuente', 'source_url',
+  'fecha_publicacion', 'fecha_cierre', 'texto_completo', 'status', 'es_demo',
+];
+
+function upsertValues(data) {
+  return COLS.map((c) => {
+    if (c === 'penalizacion' || c === 'es_demo') return data[c] === undefined ? false : data[c];
+    if (c === 'status') return data.status || 'active';
+    return data[c] === undefined ? null : data[c];
+  });
+}
+
 export const offersRepository = {
-  findById(id) {
-    return rowToJson(get(`${LIST_SQL} WHERE o.id = ?`, [id]));
+  async findById(id) {
+    return rowToJson(await get(`${LIST_SQL} WHERE o.id = ?`, [id]));
   },
 
-  list() {
-    return rowsToJson(all(`${LIST_SQL} ORDER BY o.created_at DESC, o.id DESC`));
+  async list() {
+    return rowsToJson(await all(`${LIST_SQL} ORDER BY o.created_at DESC, o.id DESC`));
   },
 
-  listBySourceIds(sourceIds, status = 'active') {
+  async listBySourceIds(sourceIds, status = 'active') {
     if (!sourceIds.length) return [];
     const placeholders = sourceIds.map(() => '?').join(', ');
-    return rowsToJson(all(
+    return rowsToJson(await all(
       `${LIST_SQL} WHERE o.status = ? AND o.source_id IN (${placeholders}) ORDER BY o.created_at DESC`,
       [status, ...sourceIds]
     ));
   },
 
-  listBySourceId(sourceId) {
-    return rowsToJson(all(`${LIST_SQL} WHERE o.source_id = ? ORDER BY o.id`, [sourceId]));
+  async listBySourceId(sourceId) {
+    return rowsToJson(await all(`${LIST_SQL} WHERE o.source_id = ? ORDER BY o.id`, [sourceId]));
   },
 
   /** Deduplicación por (source_id, external_id). */
-  findDuplicate(sourceId, externalId) {
+  async findDuplicate(sourceId, externalId) {
     return get('SELECT * FROM job_offers WHERE source_id = ? AND external_id = ?', [sourceId, externalId]);
   },
 
-  upsert(data) {
-    const existing = data.external_id
-      ? this.findDuplicate(data.source_id, data.external_id)
-      : undefined;
-    if (existing) {
-      run(
-        `UPDATE job_offers SET titulo = ?, entidad = ?, sueldo = ?, ubicacion = ?, modalidad = ?,
-         tipo_contrato = ?, duracion = ?, penalizacion = ?, fuente = ?, source_url = ?,
-         fecha_publicacion = ?, fecha_cierre = ?, texto_completo = ?, status = ?,
-         es_demo = ?, updated_at = datetime('now') WHERE id = ?`,
-        [
-          data.titulo, data.entidad, data.sueldo, data.ubicacion, data.modalidad,
-          data.tipo_contrato, data.duracion, data.penalizacion, data.fuente, data.source_url,
-          data.fecha_publicacion, data.fecha_cierre, data.texto_completo, data.status || 'active',
-          data.es_demo ?? existing.es_demo, existing.id,
-        ]
-      );
-      return { offer: this.findById(existing.id), updated: true };
-    }
-    const cols = [
-      'source_id', 'external_id', 'titulo', 'entidad', 'sueldo', 'ubicacion', 'modalidad',
-      'tipo_contrato', 'duracion', 'penalizacion', 'fuente', 'source_url',
-      'fecha_publicacion', 'fecha_cierre', 'texto_completo', 'status', 'es_demo',
-    ];
-    const values = cols.map((c) => (data[c] === undefined ? 0 : data[c]));
-    const { lastInsertRowid } = run(
-      `INSERT INTO job_offers (${cols.join(', ')}) VALUES (${cols.map(() => '?').join(', ')})`,
-      values
+  async upsert(data) {
+    const updates = COLS.filter((c) => c !== 'source_id' && c !== 'external_id')
+      .map((c) => `${c} = EXCLUDED.${c}`)
+      .join(', ');
+    const placeholders = COLS.map(() => '?').join(', ');
+    const row = await get(
+      `INSERT INTO job_offers (${COLS.join(', ')}) VALUES (${placeholders})
+       ON CONFLICT (source_id, external_id) DO UPDATE SET ${updates}, updated_at = now()
+       RETURNING id, (xmax = 0) AS inserted`,
+      upsertValues(data)
     );
-    return { offer: this.findById(lastInsertRowid), updated: false };
+    const offer = await this.findById(row.id);
+    return { offer, updated: row.inserted === false };
   },
 };

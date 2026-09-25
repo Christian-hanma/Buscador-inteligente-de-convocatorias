@@ -1,23 +1,23 @@
 import { all, get, run, rowsToJson, rowToJson } from './helpers.js';
 
 export const usersRepository = {
-  create({ email, passwordHash }) {
-    const { lastInsertRowid } = run(
-      'INSERT INTO users (email, password_hash) VALUES (?, ?)',
+  async create({ email, passwordHash }) {
+    const { lastInsertRowid } = await run(
+      'INSERT INTO users (email, password_hash) VALUES (?, ?) RETURNING id',
       [email, passwordHash]
     );
     return this.findById(lastInsertRowid);
   },
 
-  findByEmail(email) {
-    return rowToJson(get('SELECT * FROM users WHERE email = ? COLLATE NOCASE', [email]));
+  async findByEmail(email) {
+    return rowToJson(await get('SELECT * FROM users WHERE email = ?', [email]));
   },
 
-  findById(id) {
-    return rowToJson(get('SELECT * FROM users WHERE id = ?', [id]));
+  async findById(id) {
+    return rowToJson(await get('SELECT * FROM users WHERE id = ?', [id]));
   },
 
-  list() {
-    return rowsToJson(all('SELECT * FROM users ORDER BY id'));
+  async list() {
+    return rowsToJson(await all('SELECT * FROM users ORDER BY id'));
   },
 };

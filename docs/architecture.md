@@ -56,18 +56,23 @@ resultado y generar un CV adaptado a una oferta **sin inventar información**.
 
 ## Decisiones arquitectónicas relevantes
 
-### 1. Base de datos: SQLite vía módulo nativo `node:sqlite`
+### 1. Base de datos: PostgreSQL (Supabase)
 
-- Se usa el módulo integrado de Node (`node:sqlite`, `DatabaseSync`) en lugar de paquetes
-  nativos de terceros (`better-sqlite3`, `sqlite3`). Esto **evita compilar binarios nativos**
-  en Windows y reduce drásticamente la fricción de instalación.
+- El backend usa **PostgreSQL** vía el driver `pg` contra Supabase. Las tablas viven en el
+  schema `convocatorias` para no mezclarse con otros proyectos del mismo proyecto Supabase.
+- La conexión fija el `search_path` en **cada conexión nueva** del pool (evento `connect`):
+  Supabase/Supavisor ignora el parámetro `options` de la URL de conexión, así que sin esto
+  los INSERT/DROP con nombre corto caerían en `public`.
+- Tipos usados: `citext` para emails únicos case-insensitive, `JSONB` para arrays
+  (`ubicaciones_preferidas`, `brechas`, `fortalezas`, `criterios_evaluados`), `BOOLEAN`
+  nativo y `TIMESTAMPTZ`. Los arrays/objetos se serializan con `JSON.stringify` antes de
+  enviarse a columnas jsonb (el driver `pg` convierte arrays JS a literales de array de
+  Postgres, no a JSON).
 - Toda la persistencia pasa por una **capa de repositorios** (`backend/src/db/repositories`)
-  con SQL crudo. Ninguna ruta ni servicio accede a la base de datos directamente.
-- **Migración a PostgreSQL/Supabase:** la capa de repositorios es la única que conoce el
-  dialecto SQL. Para migrar se reimplementa solo esa capa (o se cambia a Knex/Prisma),
-  manteniendo intactos routes/services. El schema está documentado y las tablas son
-  ​​directamente trasladables.
-- El archivo de DB se genera en `backend/data/app.db` (ignorado por git).
+  con SQL crudo y API async (`all/get/run` que traducen `?` → `$1, $2…`). Ninguna ruta ni
+  servicio accede a la base de datos directamente.
+- El esquema se aplica con `backend/src/db/schema.sql` (ejecutado por `npm run migrate` y
+  automáticamente al arrancar el servidor).
 
 ### 2. Backend: Express + ESM
 
@@ -130,14 +135,14 @@ fuentes se marcan como `placeholder` y los workflows son ejemplos exportables.
 - Middleware `authenticate` valida el token en cada petición protegida.
 - Roles futuros (admin, etc.) pueden agregarse con el mismo middleware sin cambios mayores.
 
-## Estrategia de migración a PostgreSQL / Supabase
+## Migración a PostgreSQL / Supabase (implementada)
 
-1. Los repositorios (`src/db/repositories/*.js`) se reimplementan contra el conector
-   elegido (pg / supabase-js).
-2. El `schema.sql` documenta tipos, claves foráneas, índices y restricciones UNIQUE para
-   trasladar el modelo 1:1.
-3. Ningún otro módulo (rutas, servicios, middleware) cambia.
-4. La configuración de conexión queda detrás de variables de entorno (`DATABASE_URL`).
+1. `schema.sql` fue reescrito en DDL de PostgreSQL bajo el schema `convocatorias`.
+2. La capa de repositorios se reimplementó contra `pg` (async); rutas, servicios y
+   middleware solo adaptaron su llamadas a `await`.
+3. La conexión usa `DATABASE_URL` + `DATABASE_SCHEMA` (`.env`), con `search_path` fijado
+   por conexión (ver decisión 1).
+4. `npm run seed` / `db:reset` operan sobre Supabase directamente.
 
 ## Lo que NO está en el MVP (y por qué)
 
@@ -149,5 +154,5 @@ fuentes se marcan como `placeholder` y los workflows son ejemplos exportables.
 
 ## Extensiones planificadas
 
-scraping real vía n8n, más fuentes, Web Push / FCM, PostgreSQL/Supabase, generación PDF/DOCX,
+scraping real vía n8n, más fuentes, Web Push / FCM, generación PDF/DOCX,
 historial de postulaciones, seguimiento de procesos, cache de matchs, métricas nuevas.

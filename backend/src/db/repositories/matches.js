@@ -1,60 +1,53 @@
 import { get, run, all, rowToJson, rowsToJson } from './helpers.js';
 
 export const matchesRepository = {
-  findByUserAndOffer(userId, offerId) {
+  async findByUserAndOffer(userId, offerId) {
     return get('SELECT * FROM match_results WHERE user_id = ? AND offer_id = ?', [userId, offerId]);
   },
 
-  upsert(userId, offerId, data) {
-    const existing = this.findByUserAndOffer(userId, offerId);
-    if (existing) {
-      run(
-        `UPDATE match_results SET porcentaje_compatibilidad = ?, via_ia = ?, filtro_resultado = ?,
-         justificacion_ia = ?, brechas = ?, fortalezas = ?, criterios_evaluados = ?,
-         notificado = ?, updated_at = datetime('now')
-         WHERE user_id = ? AND offer_id = ?`,
-        [
-          data.porcentaje_compatibilidad,
-          data.via_ia ? 1 : 0,
-          data.filtro_resultado || null,
-          data.justificacion_ia || data.justificacion || null,
-          data.brechasJson || JSON.stringify(data.brechas || []),
-          data.fortalezasJson || JSON.stringify(data.fortalezas || []),
-          data.criteriosJson || JSON.stringify(data.criterios || {}),
-          data.notificado ? 1 : 0,
-          userId,
-          offerId,
-        ]
-      );
-    } else {
-      run(
-        `INSERT INTO match_results
+  async upsert(userId, offerId, data) {
+    const brechas = Array.isArray(data.brechas) ? data.brechas : data.brechasJson || [];
+    const fortalezas = Array.isArray(data.fortalezas) ? data.fortalezas : data.fortalezasJson || [];
+    const criterios = data.criterios && typeof data.criterios === 'object' && !Array.isArray(data.criterios)
+      ? data.criterios
+      : data.criteriosJson || {};
+    await run(
+      `INSERT INTO match_results
          (user_id, offer_id, porcentaje_compatibilidad, via_ia, filtro_resultado,
           justificacion_ia, brechas, fortalezas, criterios_evaluados, notificado)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [
-          userId,
-          offerId,
-          data.porcentaje_compatibilidad,
-          data.via_ia ? 1 : 0,
-          data.filtro_resultado || null,
-          data.justificacion_ia || data.justificacion || null,
-          data.brechasJson || JSON.stringify(data.brechas || []),
-          data.fortalezasJson || JSON.stringify(data.fortalezas || []),
-          data.criteriosJson || JSON.stringify(data.criterios || {}),
-          data.notificado ? 1 : 0,
-        ]
-      );
-    }
+       VALUES (?, ?, ?, ?, ?, ?, ?::jsonb, ?::jsonb, ?::jsonb, ?)
+       ON CONFLICT (user_id, offer_id) DO UPDATE SET
+         porcentaje_compatibilidad = EXCLUDED.porcentaje_compatibilidad,
+         via_ia = EXCLUDED.via_ia,
+         filtro_resultado = EXCLUDED.filtro_resultado,
+         justificacion_ia = EXCLUDED.justificacion_ia,
+         brechas = EXCLUDED.brechas,
+         fortalezas = EXCLUDED.fortalezas,
+         criterios_evaluados = EXCLUDED.criterios_evaluados,
+         notificado = EXCLUDED.notificado,
+         updated_at = now()`,
+      [
+        userId,
+        offerId,
+        data.porcentaje_compatibilidad,
+        data.via_ia === true,
+        data.filtro_resultado || null,
+        data.justificacion_ia || data.justificacion || null,
+        JSON.stringify(brechas),
+        JSON.stringify(fortalezas),
+        JSON.stringify(criterios),
+        data.notificado === true,
+      ]
+    );
     return this.findByUserAndOffer(userId, offerId);
   },
 
-  markNotified(id) {
-    run('UPDATE match_results SET notificado = 1, updated_at = datetime(\'now\') WHERE id = ?', [id]);
+  async markNotified(id) {
+    await run("UPDATE match_results SET notificado = true, updated_at = now() WHERE id = ?", [id]);
   },
 
-  listForUser(userId) {
-    return rowsToJson(all(
+  async listForUser(userId) {
+    return rowsToJson(await all(
       `SELECT m.*, o.titulo, o.entidad, o.sueldo, o.ubicacion, o.modalidad, o.tipo_contrato,
               o.duracion, o.penalizacion, o.source_url, o.texto_completo, o.source_id,
               s.name AS source_name, s.type AS source_type, s.status AS source_status,
@@ -69,8 +62,8 @@ export const matchesRepository = {
     ));
   },
 
-  findByIdForUser(userId, id) {
-    return rowToJson(get(
+  async findByIdForUser(userId, id) {
+    return rowToJson(await get(
       `SELECT m.*, o.titulo, o.entidad, o.sueldo, o.ubicacion, o.modalidad, o.tipo_contrato,
               o.duracion, o.penalizacion, o.source_url, o.texto_completo, o.source_id,
               s.name AS source_name, s.type AS source_type, s.status AS source_status

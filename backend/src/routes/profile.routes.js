@@ -24,27 +24,27 @@ const cvSchema = z.object({
   cv_texto: z.string().min(1, 'El texto del CV no puede estar vacío').max(50000),
 });
 
-router.get('/', (req, res) => {
-  res.json(getProfile(req.user.id));
+router.get('/', async (req, res) => {
+  res.json(await getProfile(req.user.id));
 });
 
-router.post('/', validateBody(profileSchema), (req, res) => {
-  const profile = upsertProfile(req.user.id, req.validated);
+router.post('/', validateBody(profileSchema), async (req, res) => {
+  const profile = await upsertProfile(req.user.id, req.validated);
   res.status(201).json(profile);
 });
 
-router.put('/', validateBody(profileSchema), (req, res) => {
-  const profile = upsertProfile(req.user.id, req.validated);
+router.put('/', validateBody(profileSchema), async (req, res) => {
+  const profile = await upsertProfile(req.user.id, req.validated);
   res.json(profile);
 });
 
-router.post('/cv', validateBody(cvSchema), (req, res) => {
-  const profile = setProfileCv(req.user.id, req.validated);
+router.post('/cv', validateBody(cvSchema), async (req, res) => {
+  const profile = await setProfileCv(req.user.id, req.validated);
   res.json(profile);
 });
 
-router.get('/cv', (req, res) => {
-  const profile = getProfile(req.user.id);
+router.get('/cv', async (req, res) => {
+  const profile = await getProfile(req.user.id);
   res.json({ cv_texto: profile?.cv_texto || '' });
 });
 

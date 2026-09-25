@@ -17,18 +17,19 @@ const loginSchema = z.object({
   password: z.string().min(1, 'Contraseña requerida').max(200),
 });
 
-router.post('/register', validateBody(registerSchema), (req, res) => {
-  const result = registerUser(req.validated);
+router.post('/register', validateBody(registerSchema), async (req, res) => {
+  const result = await registerUser(req.validated);
   res.status(201).json(result);
 });
 
-router.post('/login', validateBody(loginSchema), (req, res) => {
-  const result = loginUser(req.validated);
+router.post('/login', validateBody(loginSchema), async (req, res) => {
+  const result = await loginUser(req.validated);
   res.json(result);
 });
 
-router.get('/me', authenticate, (req, res) => {
-  res.json({ user: publicUser(usersRepository.findById(req.user.id)) });
+router.get('/me', authenticate, async (req, res) => {
+  const user = await usersRepository.findById(req.user.id);
+  res.json({ user: publicUser(user) });
 });
 
 export default router;
