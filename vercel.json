@@ -3,7 +3,7 @@
   "rewrites": [
     {
       "source": "/api/(.*)",
-      "destination": "https://convocatorias-api.onrender.com/api/$1"
+      "destination": "https://buscador-inteligente-de-convocatorias.onrender.com/api/$1"
     }
   ]
 }
