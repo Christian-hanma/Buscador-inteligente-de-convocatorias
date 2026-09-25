@@ -9,6 +9,7 @@ export const env = {
   DATABASE_URL: process.env.DATABASE_URL || '',
   DATABASE_SCHEMA: process.env.DATABASE_SCHEMA || 'convocatorias',
   OPENAI_API_KEY: process.env.OPENAI_API_KEY || '',
+  OPENAI_BASE_URL: process.env.OPENAI_BASE_URL || '',
   OPENAI_MODEL: process.env.OPENAI_MODEL || 'gpt-4o-mini',
   OPENAI_USE_MOCK: process.env.OPENAI_USE_MOCK === 'true',
   WEBHOOK_SECRET: process.env.WEBHOOK_SECRET || 'dev-webhook-secret',

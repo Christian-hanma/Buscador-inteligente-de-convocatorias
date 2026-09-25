@@ -7,12 +7,18 @@ import { parseJson } from '../utils/index.js';
 /** Proveedor mock/humano determinístico: documenta el modo en el resultado. */
 export const AI_MODE = env.OPENAI_USE_MOCK || !env.OPENAI_API_KEY ? 'mock' : 'openai';
 
+const AI_PROVIDER = env.OPENAI_BASE_URL ? 'openai-compatible' : 'openai';
+
 let client = null;
 
 function getClient() {
   if (!env.OPENAI_API_KEY || env.OPENAI_USE_MOCK) return null;
   if (!client) {
-    client = new OpenAI({ apiKey: env.OPENAI_API_KEY, timeout: 25000 });
+    client = new OpenAI({
+      apiKey: env.OPENAI_API_KEY,
+      baseURL: env.OPENAI_BASE_URL || undefined,
+      timeout: 25000,
+    });
   }
   return client;
 }
@@ -158,7 +164,7 @@ export async function evaluateCompatibility(context) {
       system: MATCHING_SYSTEM_PROMPT,
       user: buildMatchingPrompt(context),
     });
-    return { ...normalizeMatchingResult(raw), provider: 'openai', model: env.OPENAI_MODEL };
+    return { ...normalizeMatchingResult(raw), provider: AI_PROVIDER, model: env.OPENAI_MODEL };
   } catch (err) {
     console.warn('[ai] fallback a mock:', err.message);
     const mock = mockEvaluateForOffer(context);
@@ -208,7 +214,7 @@ export async function adaptCv(context) {
     });
     const content = typeof raw === 'string' ? raw : String(raw.cv || '');
     if (!content.trim()) throw new Error('CV vacío del proveedor IA');
-    return { content, provider: 'openai', model: env.OPENAI_MODEL };
+    return { content, provider: AI_PROVIDER, model: env.OPENAI_MODEL };
   } catch (err) {
     console.warn('[ai] fallback a mock (adaptación CV):', err.message);
     return { content: mockAdaptCv(context), provider: 'mock', model: 'determinista-local', aiError: err.message };
