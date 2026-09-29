@@ -1,0 +1,195 @@
+{
+  "id": "7c1e7a20-9f5b-4def-8b62-1f1505a4c210",
+  "name": "Ingesta Computrabajo (scraper HTML)",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours",
+              "hoursInterval": 3
+            }
+          ]
+        }
+      },
+      "id": "schedule-ct",
+      "name": "Cada 3 horas",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [0, 0]
+    },
+    {
+      "parameters": {
+        "url": "https://pe.computrabajo.com/empleos-en-lima?p=1",
+        "authentication": "none",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "User-Agent",
+              "value": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "responseFormat": "text"
+          }
+        }
+      },
+      "id": "get-ct-p1",
+      "name": "Descargar pagina 1",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [180, 0]
+    },
+    {
+      "parameters": {
+        "authentication": "none",
+        "method": "POST",
+        "url": "https://buscador-inteligente-de-convocatorias.onrender.com/api/webhook/ingest-html",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "x-webhook-secret",
+              "value": "dev-webhook-secret"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ source: 'computrabajo', html: $json.body }) }}"
+      },
+      "id": "post-ct-p1",
+      "name": "Enviar al backend (p1)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [380, 0]
+    },
+    {
+      "parameters": {
+        "url": "https://pe.computrabajo.com/empleos-en-lima?p=2",
+        "authentication": "none",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "User-Agent",
+              "value": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "responseFormat": "text"
+          }
+        }
+      },
+      "id": "get-ct-p2",
+      "name": "Descargar pagina 2",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [580, 0]
+    },
+    {
+      "parameters": {
+        "authentication": "none",
+        "method": "POST",
+        "url": "https://buscador-inteligente-de-convocatorias.onrender.com/api/webhook/ingest-html",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "x-webhook-secret",
+              "value": "dev-webhook-secret"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ source: 'computrabajo', html: $json.body }) }}"
+      },
+      "id": "post-ct-p2",
+      "name": "Enviar al backend (p2)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [780, 0]
+    },
+    {
+      "parameters": {
+        "url": "https://pe.computrabajo.com/empleos-en-lima?p=3",
+        "authentication": "none",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "User-Agent",
+              "value": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "responseFormat": "text"
+          }
+        }
+      },
+      "id": "get-ct-p3",
+      "name": "Descargar pagina 3",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [980, 0]
+    },
+    {
+      "parameters": {
+        "authentication": "none",
+        "method": "POST",
+        "url": "https://buscador-inteligente-de-convocatorias.onrender.com/api/webhook/ingest-html",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "x-webhook-secret",
+              "value": "dev-webhook-secret"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ source: 'computrabajo', html: $json.body }) }}"
+      },
+      "id": "post-ct-p3",
+      "name": "Enviar al backend (p3)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1180, 0]
+    }
+  ],
+  "connections": {
+    "Cada 3 horas": {
+      "main": [[{ "node": "Descargar pagina 1", "type": "main", "index": 0 }]]
+    },
+    "Descargar pagina 1": {
+      "main": [[{ "node": "Enviar al backend (p1)", "type": "main", "index": 0 }]]
+    },
+    "Enviar al backend (p1)": {
+      "main": [[{ "node": "Descargar pagina 2", "type": "main", "index": 0 }]]
+    },
+    "Descargar pagina 2": {
+      "main": [[{ "node": "Enviar al backend (p2)", "type": "main", "index": 0 }]]
+    },
+    "Enviar al backend (p2)": {
+      "main": [[{ "node": "Descargar pagina 3", "type": "main", "index": 0 }]]
+    },
+    "Descargar pagina 3": {
+      "main": [[{ "node": "Enviar al backend (p3)", "type": "main", "index": 0 }]]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {},
+  "active": false
+}

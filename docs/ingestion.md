@@ -37,30 +37,42 @@ Payload de oferta (campos opcionales marcados):
 Nota: los workflow de borrador en `n8n-workflows/*.json` ya emiten este formato plano a la
 URL de producción.
 
-## 2. Semilla de desarrollo (`npm run seed`)
+## 2. Webhook HTML (`POST /api/webhook/ingest-html`)
+
+Flujo "n8n tonto, backend listo": n8n solo **descarga** la página y la envía aquí cruda;
+el backend la parsea, normaliza y hace upsert con dedupe. Requiere `x-webhook-secret`.
+
+```json
+{ "source": "computrabajo", "html": "<!DOCTYPE html>..." }
+```
+
+Fuentes soportadas hoy (parsers en `ingest-html.service.js`):
+
+- `computrabajo` → analiza `article[data-offers-grid-offer-item-container]` (20 por página: título, empresa, ubicación, salario, descripción corta).
+- `yaempleo` → extrae los enlaces del listado `/posts` y descarga cada detalle (título, entidad, ubicación, salario, fecha de cierre, tipo CAS/728).
+
+## 3. Semilla de desarrollo (`npm run seed`)
 
 Crea 6 ofertas demo con `status='active'` para probar el pipeline (matching, dashboard).
 
 ## Fuentes actuales (seed)
 
-| key | Nombre | Método previsto | Estado |
+| key | Nombre | Método | Estado |
 | --- | --- | --- | --- |
-| `servir-ofertas` | SERVIR · Ofertas de Empleo Público (app.servir.gob.pe) | N8N | placeholder |
-| `empleos-peru` | Empleos Perú / MTPE (empleosperu.gob.pe) | N8N | placeholder |
-| `poder-judicial` | Empleos Públicos del Poder Judicial | N8N | placeholder |
-| `computrabajo` | Computrabajo | SCRAPING | placeholder |
-| `indeed` | Indeed (pe.indeed.com) | SCRAPING | placeholder |
-| `linkedin` | LinkedIn | SCRAPING | placeholder |
-| `yaempleo` | Ya Empleo (www.yaempleo.net) | SCRAPING | placeholder |
+| `computrabajo` | Computrabajo (pe.computrabajo.com/empleos-en-lima) | n8n GET → `/ingest-html` | ✅ integrada (workflow `ingesta-computrabajo.json`) |
+| `yaempleo` | Ya Empleo (www.yaempleo.net/posts) | n8n GET → `/ingest-html` | ✅ integrada (workflow `ingesta-yaempleo.json`) |
+| `empleos-peru` | Empleos Perú / MTPE | — | ⛔ pendiente — SPA cerrada (JS 404, requiere login) |
+| `servir-ofertas` | SERVIR (app.servir.gob.pe) | — | ⛔ pendiente — anti-bot 403 + JSF/viewstate |
+| `poder-judicial` | Empleos Públicos PJ | — | ⛔ bloqueada — anti-bot Imperva; alternativa: cubrir vía SERVIR |
+| `indeed` | Indeed (pe.indeed.com) | — | ⛔ descartada — Cloudflare/captcha, robots lo prohíbe |
+| `linkedin` | LinkedIn | — | ⚠️ opcional — guest API frágil + robots lo bloquea |
 
 Cada `job_source` tiene `status`:
-- `placeholder` (hoy) — la fuente existe en BD pero no hay workflow real conectado.
-- `integrada` — cuando un workflow n8n empuje datos reales.
+- `integrada` — hay workflow n8n empujando datos reales (dedupe por `(source_id, external_id)`).
+- las demás: placeholder/pendientes hasta resolver acceso.
 
-> Nota SERVIR: el buscador de ofertas públicas de SERVIR (`DifusionOfertasExterno`) es una
-> app JSF; las ofertas registradas en ella se difunden automáticamente en el portal
-> **Empleos Perú** (`www.empleosperu.gob.pe`), por lo que conviene priorizar el parseo de
-> Empleos Perú para no duplicar trabajo.
+> Nota SERVIR/PJ: los convocatorias públicas se difunden simultáneamente en **Empleos Perú**
+> y **Ya Empleo** (que ya está integrada), por lo que el empalme público está parcialmente cubierto.
 
 ## Flujo completo
 
