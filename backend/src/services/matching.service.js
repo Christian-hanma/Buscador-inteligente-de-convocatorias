@@ -74,7 +74,7 @@ export async function evaluateOfferForUser(userId, offerId) {
 
   const match = await matchesRepository.upsert(userId, offerId, {
     porcentaje_compatibilidad: finalScore,
-    via_ia: aiResult.provider === 'openai',
+    via_ia: aiResult.provider !== 'mock',
     filtro_resultado: 'PASS',
     justificacion_ia: aiResult.overall_analysis,
     brechas: aiResult.gaps,

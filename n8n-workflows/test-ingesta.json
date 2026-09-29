@@ -1,0 +1,50 @@
+{
+  "id": "c3d9e4f5-a6b7-4c8d-9e0f-1a2b3c4d5e6f",
+  "name": "Test Ingesta Webhook (2 nodos)",
+  "nodes": [
+    {
+      "parameters": {
+        "jsCode": "// Oferta unica de prueba en formato plano del webhook\nreturn [{\n  source: 'empleos-peru',\n  external_id: 'n8n-test-2',\n  title: 'Asistente Administrativo (Prueba n8n)',\n  company: 'Entidad de Prueba',\n  salary: 3500,\n  location: 'Lima',\n  modality: 'presencial',\n  contract_type: 'CAS',\n  description: 'Apoyo administrativo general. Requiere secundaria completa y dominio de Excel.'\n}]"
+      },
+      "id": "code-test",
+      "name": "Crear oferta",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [0, 0]
+    },
+    {
+      "parameters": {
+        "authentication": "none",
+        "method": "POST",
+        "url": "https://buscador-inteligente-de-convocatorias.onrender.com/api/webhook/ingest",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "x-webhook-secret",
+              "value": "dev-webhook-secret"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json) }}"
+      },
+      "id": "http-post-test",
+      "name": "Enviar al webhook",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [240, 0]
+    }
+  ],
+  "connections": {
+    "Crear oferta": {
+      "main": [[{ "node": "Enviar al webhook", "type": "main", "index": 0 }]]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {},
+  "active": false
+}
