@@ -1,4 +1,5 @@
 {
+  "id": "a1e7b2c3-d4f5-4a6b-8c9d-0e1f2a3b4c5d",
   "name": "Ingesta Empleos Perú (borrador)",
   "nodes": [
     {
@@ -48,7 +49,7 @@
           "parameters": [
             {
               "name": "x-webhook-secret",
-              "value": "=" + "{{ $env.WEBHOOK_SECRET || 'dev-webhook-secret' }}"
+              "value": "={{ $env.WEBHOOK_SECRET || 'dev-webhook-secret' }}"
             }
           ]
         },
