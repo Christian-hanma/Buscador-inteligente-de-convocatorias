@@ -8,6 +8,9 @@ import { HttpError } from '../utils/httpError.js';
 import { userSourcesRepository } from '../db/repositories/userSources.js';
 import { sourcesRepository } from '../db/repositories/sources.js';
 import { searchIntegratedSource } from '../services/ingest-html.service.js';
+import { configsRepository } from '../db/repositories/configs.js';
+import { parseJson } from '../utils/index.js';
+import { isOfferExpired } from '../utils/dates.js';
 
 const router = Router();
 router.use(authenticate);
@@ -45,6 +48,13 @@ router.post('/evaluate', validateBody(evaluateSchema), async (req, res) => {
 
 router.get('/', async (req, res) => {
   let matches = await matchesRepository.listForUser(req.user.id);
+  const config = await configsRepository.findByUserId(req.user.id);
+  const configVersion = config?.updated_at ? new Date(config.updated_at).toISOString() : null;
+  matches = matches.filter((match) => {
+    if (isOfferExpired({ fecha_cierre: match.fecha_cierre, status: match.offer_status })) return false;
+    const criteria = parseJson(match.criterios_evaluados, {});
+    return Boolean(configVersion && criteria.config_updated_at === configVersion);
+  });
   if (req.query.filtro === 'rejected') {
     matches = matches.filter((m) => m.filtro_resultado === 'REJECT');
   }

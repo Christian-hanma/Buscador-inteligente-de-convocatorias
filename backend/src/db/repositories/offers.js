@@ -32,9 +32,10 @@ export const offersRepository = {
   async listBySourceIds(sourceIds, status = 'active') {
     if (!sourceIds.length) return [];
     const placeholders = sourceIds.map(() => '?').join(', ');
+    const statusClause = status === 'all' ? '' : ' AND o.status = ?';
     return rowsToJson(await all(
-      `${LIST_SQL} WHERE o.status = ? AND o.source_id IN (${placeholders}) ORDER BY o.created_at DESC`,
-      [status, ...sourceIds]
+      `${LIST_SQL} WHERE o.source_id IN (${placeholders})${statusClause} ORDER BY o.created_at DESC`,
+      status === 'all' ? sourceIds : [...sourceIds, status]
     ));
   },
 

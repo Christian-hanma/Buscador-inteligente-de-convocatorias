@@ -2,6 +2,7 @@ import * as cheerio from 'cheerio';
 import { sourcesRepository } from '../db/repositories/sources.js';
 import { offersRepository } from '../db/repositories/offers.js';
 import { HttpError } from '../utils/httpError.js';
+import { isOfferExpired, parseDateOnly } from '../utils/dates.js';
 
 const UA = {
   'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36',
@@ -16,10 +17,53 @@ function clean(text) {
 }
 
 function parseSoles(text) {
-  const m = String(text ?? '').match(/\d[\d.,]{1,14}/);
+  const m = String(text ?? '').match(/\d[\d.,]{0,14}/);
   if (!m) return null;
-  const n = parseFloat(m[0].replace(/\./g, '').replace(',', '.'));
+  const raw = m[0];
+  const lastSeparator = Math.max(raw.lastIndexOf(','), raw.lastIndexOf('.'));
+  let normalized = raw;
+  if (lastSeparator >= 0) {
+    const decimals = raw.length - lastSeparator - 1;
+    const hasBothSeparators = raw.includes(',') && raw.includes('.');
+    const isThousandsOnly = !hasBothSeparators && decimals === 3;
+    if (isThousandsOnly) normalized = raw.replace(/[.,]/g, '');
+    else normalized = `${raw.slice(0, lastSeparator).replace(/[.,]/g, '')}.${raw.slice(lastSeparator + 1).replace(/[.,]/g, '')}`;
+  }
+  const n = parseFloat(normalized);
   return Number.isFinite(n) ? Math.round(n) : null;
+}
+
+function parseContractType(text) {
+  const value = String(text ?? '');
+  if (/\bCAS\b|contrato administrativo de servicios/i.test(value)) return 'CAS';
+  if (/\b728\b/.test(value)) return 'DL 728';
+  if (/\b276\b/.test(value)) return 'DL 276';
+  if (/planilla|r[eé]gimen laboral|plazo fijo/i.test(value)) return 'Planilla';
+  if (/locaci[oó]n de servicios|honorarios|independiente/i.test(value)) return 'Independiente';
+  return null;
+}
+
+function parseModality(text) {
+  const value = String(text ?? '');
+  if (/teletrabajo|remoto|desde casa/i.test(value)) return 'remoto';
+  if (/h[ií]brido|mixto/i.test(value)) return 'híbrido';
+  if (/presencial/i.test(value)) return 'presencial';
+  return null;
+}
+
+function parseDurationMonths(text) {
+  const value = String(text ?? '');
+  const match = value.match(/(?:duraci[oó]n|plazo del contrato|plazo de contrataci[oó]n|vigencia del contrato)\D{0,35}(\d{1,2})\s*(mes(?:es)?|a[nñ]os?)/i)
+    || value.match(/contrato\s+(?:CAS|DL\s*\d{3})?\D{0,25}por\s+(\d{1,2})\s*(mes(?:es)?|a[nñ]os?)/i);
+  if (!match) return null;
+  const count = Number(match[1]);
+  return /a[nñ]o/i.test(match[2]) ? count * 12 : count;
+}
+
+function hasContractualPenalty(text) {
+  const value = String(text ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+  if (/\b(sin|no aplica|no se aplica)\s+(?:ninguna\s+)?penalidad/.test(value)) return false;
+  return /penalidad(?: contractual)? por (?:renuncia|retiro|desistimiento)|penalizacion contractual|sujeto a penalidad|multa por (?:renuncia|retiro)/.test(value);
 }
 
 async function fetchHtml(url) {
@@ -29,7 +73,7 @@ async function fetchHtml(url) {
 }
 
 async function upsertOffer(source, externalId, fields) {
-  const existing = await offersRepository.findDuplicate(source.id, String(externalId).slice(0, 200));
+  const closingDate = parseDateOnly(fields.closing_date);
   try {
     const result = await offersRepository.upsert({
       source_id: source.id,
@@ -40,14 +84,14 @@ async function upsertOffer(source, externalId, fields) {
       ubicacion: fields.location || null,
       modalidad: fields.modality || null,
       tipo_contrato: fields.contract_type || null,
-      duracion: null,
-      penalizacion: false,
+      duracion: fields.duration ?? null,
+      penalizacion: fields.penalization === true,
       fuente: source.name,
       source_url: fields.source_url || null,
       fecha_publicacion: null,
-      fecha_cierre: fields.closing_date || null,
+      fecha_cierre: closingDate,
       texto_completo: fields.description || null,
-      status: 'active',
+      status: isOfferExpired({ fecha_cierre: closingDate }) ? 'expired' : 'active',
     });
     return { created: !result.updated };
   } catch (err) {
@@ -86,7 +130,10 @@ export function parseComputrabajo(html) {
       company: clean($company.text()),
       location,
       salary: parseSoles(salaryText),
-      contract_type: null,
+      contract_type: parseContractType(articleText),
+      modality: parseModality(articleText),
+      duration: parseDurationMonths(articleText),
+      penalization: hasContractualPenalty(articleText),
       source_url: url,
       description: snippet || null,
     });
@@ -124,7 +171,8 @@ export function parseYaempleoDetail(html, url) {
   const text = clean(main.text()) || clean($('body').text());
   const slug = (url.split('/').filter(Boolean).pop() || title.toLowerCase().replace(/[^a-z0-9]+/g, '-')).slice(0, 200);
   const salaryText = text.match(/(?:S\/|S\/\.)\s*\d[\d.,]{1,14}/)?.[0] ?? '';
-  const closing = text.match(/(?:Cierra|Finaliza)\s*:?\s*([^P]{3,60}?)(?:Publicado|Cierra|$)/i)?.[1] ?? null;
+  const closingLabel = text.match(/(?:Cierre de convocatoria|Fecha de cierre|Vigente hasta|Cierra|Finaliza)\s*:?\s*([^\n]{1,80})/i)?.[1] ?? '';
+  const closing = parseDateOnly(closingLabel);
   const location = text.match(/(?:Ubicaci[óo]n|Lugar|Departamento)\s*:?\s*([^\n.,]{3,90})/i)?.[1]
     ?? (text.includes('Lima') ? 'Lima' : null);
   const company = text.match(/Entidad\s*:?\s*([A-Za-zÁÉÍÓÚÑáéíóúñ0-9 .#-]{2,60}?)(?=Contrato|CAS|Plazas|Regiones|Fecha|$)/i)?.[1]
@@ -132,7 +180,7 @@ export function parseYaempleoDetail(html, url) {
     ?? text.match(/(?:Organismo|Empresa)\s*([^\n.]{3,120})/i)?.[1]
     ?? null;
   const freetext = `${title} ${text.slice(0, 6000)}`;
-  const contract_type = /\bCAS\b/i.test(freetext) ? 'CAS' : (/\b728\b/i.test(freetext) ? 'DL 728' : null);
+  const contract_type = parseContractType(freetext);
   const description = text.slice(0, 30000);
   return {
     external_id: `yaempleo-${slug}`,
@@ -141,6 +189,8 @@ export function parseYaempleoDetail(html, url) {
     location,
     salary: parseSoles(salaryText),
     contract_type,
+    duration: parseDurationMonths(text),
+    penalization: hasContractualPenalty(text),
     source_url: url,
     closing_date: closing,
     description,

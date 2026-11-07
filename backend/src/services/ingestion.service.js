@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { sourcesRepository } from '../db/repositories/sources.js';
 import { offersRepository } from '../db/repositories/offers.js';
 import { HttpError } from '../utils/httpError.js';
+import { isOfferExpired, parseDateOnly } from '../utils/dates.js';
 
 /** Contrato normalizado aceptado por POST /webhook/ingest (lo produce n8n). */
 export const ingestSchema = z.object({
@@ -23,6 +24,8 @@ export const ingestSchema = z.object({
 
 function toUnixOrNull(iso) {
   if (!iso) return null;
+  const dateOnly = parseDateOnly(iso);
+  if (dateOnly) return dateOnly;
   const t = Date.parse(iso);
   return Number.isNaN(t) ? iso : new Date(t).toISOString().slice(0, 10);
 }
@@ -56,7 +59,7 @@ export async function ingestOffer(payload) {
     fecha_publicacion: toUnixOrNull(data.publication_date),
     fecha_cierre: toUnixOrNull(data.closing_date),
     texto_completo: data.description,
-    status: 'active',
+    status: isOfferExpired({ fecha_cierre: toUnixOrNull(data.closing_date) }) ? 'expired' : 'active',
   });
 
   return {

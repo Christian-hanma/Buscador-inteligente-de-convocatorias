@@ -47,7 +47,7 @@ export default function Configuracion() {
     <>
       <PageHeader
         title="Configuración de búsqueda"
-        description="Estos filtros duros descartan ofertas ANTES de gastar una llamada de IA."
+        description="Las convocatorias que no cumplen estas preferencias se descartan antes de evaluarlas."
       />
       {saved && (
         <div className="mb-4">
@@ -63,19 +63,16 @@ export default function Configuracion() {
       <form onSubmit={onSubmit} className="space-y-5">
         <Card>
           <h3 className="mb-4 text-sm font-semibold text-slate-900">Remuneración y ubicación</h3>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <Field label="Sueldo mínimo (S/)">
               <Input type="number" min={0} value={config.sueldo_minimo ?? ''} onChange={(e) => setNum(e, 'sueldo_minimo')} />
             </Field>
             <Field label="Sueldo máximo (S/)">
               <Input type="number" min={0} value={config.sueldo_maximo ?? ''} onChange={(e) => setNum(e, 'sueldo_maximo')} />
             </Field>
-            <Field label="Radio (km)">
-              <Input type="number" min={0} value={config.radio_zona ?? ''} onChange={(e) => setNum(e, 'radio_zona')} />
-            </Field>
           </div>
           <div className="mt-4">
-            <Field label="Zonas preferidas" hint="Mantén presionado Ctrl (o Cmd) para elegir varias.">
+            <Field label="Departamentos preferidos" hint="Solo se mostrarán convocatorias ubicadas en los departamentos elegidos. Mantén Ctrl (o Cmd) para elegir varias.">
               <Select
                 multiple
                 value={config.ubicaciones_preferidas ?? []}

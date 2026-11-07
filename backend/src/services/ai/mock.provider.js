@@ -88,7 +88,7 @@ export function mockEvaluateForOffer({ profile, config, offer }) {
   let location_score = 90;
   if (offer.ubicacion) {
     const normOffer = normalize(offer.ubicacion);
-    if (preferidas.some((u) => normalize(u) === normOffer)) location_score = 100;
+    if (preferidas.some((u) => normOffer.includes(normalize(u)))) location_score = 100;
     else if (profile.ubicacion_actual && normalize(profile.ubicacion_actual) === normOffer) location_score = 100;
     else if (preferidas.length) location_score = 15;
     else location_score = 75;

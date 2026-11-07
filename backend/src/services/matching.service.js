@@ -10,6 +10,7 @@ import { userSourcesRepository } from '../db/repositories/userSources.js';
 import { notificationService } from './notification.service.js';
 import { HttpError } from '../utils/httpError.js';
 import { parseJson } from '../utils/index.js';
+import { isOfferExpired } from '../utils/dates.js';
 
 function serializeMatch(match) {
   if (!match) return match;
@@ -40,8 +41,10 @@ export async function evaluateOfferForUser(userId, offerId) {
     throw new HttpError(400, 'Completa tu perfil profesional antes de evaluar ofertas');
   }
   const config = await configsRepository.findByUserId(userId) || await configsRepository.createDefault(userId);
+  const configVersion = config.updated_at ? new Date(config.updated_at).toISOString() : null;
   const offer = await offersRepository.findById(offerId);
   if (!offer) throw new HttpError(404, 'Oferta no encontrada');
+  if (isOfferExpired(offer)) throw new HttpError(410, 'Esta convocatoria ya venció y no se puede evaluar.');
 
   const user = await usersRepository.findById(userId);
 
@@ -54,7 +57,7 @@ export async function evaluateOfferForUser(userId, offerId) {
       justificacion_ia: 'Descartada por filtros duros. No se utilizó IA.',
       brechas: hard.reasons,
       fortalezas: [],
-      criterios: { filtros_duros: hard.reasons, provider: 'deterministico' },
+      criterios: { filtros_duros: hard.reasons, provider: 'deterministico', config_updated_at: configVersion },
       notificado: false,
     });
     return { match: serializeMatch(match), notification: null, offer: serializeOffer(offer) };
@@ -79,7 +82,7 @@ export async function evaluateOfferForUser(userId, offerId) {
     justificacion_ia: aiResult.overall_analysis,
     brechas: aiResult.gaps,
     fortalezas: aiResult.strengths,
-    criterios: { weights, subscores, provider: aiResult.provider, model: aiResult.model },
+    criterios: { weights, subscores, provider: aiResult.provider, model: aiResult.model, config_updated_at: configVersion },
     notificado: false,
   });
 
@@ -98,19 +101,25 @@ export async function evaluateOffersForUser(userId, { force = false } = {}) {
     throw new HttpError(400, 'Selecciona al menos una fuente laboral para evaluar ofertas');
   }
   const offers = await offersRepository.listBySourceIds(selectedIds);
-  if (!offers.length) {
+  const activeOffers = offers.filter((offer) => !isOfferExpired(offer));
+  if (!activeOffers.length) {
     return { total: 0, evaluated: [], rejected: [], notified: [] };
   }
+
+  const config = await configsRepository.findByUserId(userId) || await configsRepository.createDefault(userId);
+  const configVersion = config.updated_at ? new Date(config.updated_at).toISOString() : null;
 
   const results = [];
   const rejected = [];
   const notified = [];
   let skipped = 0;
 
-  for (const offer of offers) {
+  for (const offer of activeOffers) {
     if (!force) {
       const existing = await matchesRepository.findByUserAndOffer(userId, offer.id);
-      if (existing) {
+      const previousCriteria = parseJson(existing?.criterios_evaluados, {});
+      const evaluatedWithCurrentConfig = existing && previousCriteria.config_updated_at === configVersion;
+      if (evaluatedWithCurrentConfig) {
         skipped += 1;
         continue;
       }
@@ -121,7 +130,7 @@ export async function evaluateOffersForUser(userId, { force = false } = {}) {
     if (result.notification?.notified) notified.push(result.match);
   }
 
-  return { total: offers.length, evaluated: results, rejected, notified, skipped };
+  return { total: activeOffers.length, evaluated: results, rejected, notified, skipped };
 }
 
 export { serializeMatch };

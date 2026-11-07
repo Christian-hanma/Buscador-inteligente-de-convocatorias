@@ -27,7 +27,6 @@ export default function Onboarding() {
   const [config, setConfig] = useState<ConfigFiltro>({
     sueldo_minimo: 3000,
     sueldo_maximo: 6000,
-    radio_zona: 40,
     ubicaciones_preferidas: ['Lima'],
     duracion_min_meses: 1,
     duracion_max_meses: 12,

@@ -31,7 +31,6 @@ export interface ConfigFiltro {
   user_id?: number;
   sueldo_minimo?: number | null;
   sueldo_maximo?: number | null;
-  radio_zona?: number | null;
   ubicaciones_preferidas?: string[];
   duracion_min_meses?: number | null;
   duracion_max_meses?: number | null;

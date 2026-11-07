@@ -50,6 +50,7 @@ export const matchesRepository = {
     return rowsToJson(await all(
       `SELECT m.*, o.titulo, o.entidad, o.sueldo, o.ubicacion, o.modalidad, o.tipo_contrato,
               o.duracion, o.penalizacion, o.source_url, o.texto_completo, o.source_id,
+              o.fecha_cierre, o.status AS offer_status,
               s.name AS source_name, s.type AS source_type, s.status AS source_status,
               p.nombre_completo, p.ubicacion_actual
        FROM match_results m
@@ -66,6 +67,7 @@ export const matchesRepository = {
     return rowToJson(await get(
       `SELECT m.*, o.titulo, o.entidad, o.sueldo, o.ubicacion, o.modalidad, o.tipo_contrato,
               o.duracion, o.penalizacion, o.source_url, o.texto_completo, o.source_id,
+              o.fecha_cierre, o.status AS offer_status,
               s.name AS source_name, s.type AS source_type, s.status AS source_status
        FROM match_results m
        JOIN job_offers o ON o.id = m.offer_id

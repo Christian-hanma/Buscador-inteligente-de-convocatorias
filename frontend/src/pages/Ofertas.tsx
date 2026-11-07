@@ -7,12 +7,12 @@ import { formatCurrency, percentTone } from '../utils/format';
 
 export default function Ofertas() {
   const [offers, setOffers] = useState<JobOffer[]>([]);
-  const [status, setStatus] = useState('all');
+  const [status, setStatus] = useState('active');
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     api
-      .get<JobOffer[]>('/offers')
+      .get<JobOffer[]>('/offers?status=all')
       .then(setOffers)
       .catch(() => undefined)
       .finally(() => setLoading(false));

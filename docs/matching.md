@@ -6,14 +6,15 @@ El cálculo de compatibilidad entre el perfil del usuario y una oferta usa **dos
 
 `backend/src/services/filter.service.js` — evalúa reglas deterministas sobre `config_filtros`:
 
-- **PASS** si hay al menos una condición de distancia habilitada POR FUEGO.
-  *Espejo de reglas de negocio*: años mínimos/máximos solo si `min/max > 0`, modalidad/contrato solo si no son `any`, penalización solo si `excluir_penalizaciones` está marcado.
+- **PASS** si la oferta cumple todas las condiciones configuradas y publica los datos necesarios para comprobarlas.
 - **REJECT** si falla cualquier condición. El resultado se guarda con el motivo en
   `match_results.filtro_resultado = 'REJECT'` y **no se llama a OpenAI** (ahorro de costo).
 
-Condiciones evaluadas (todas opcionales según la config):
-`duracion min/max meses`, `sueldo min/max`, `penalización`, `modalidad`, `tipo de contrato`.
-La ubicación **no** descarta: entra como brecha/puntaje soft en la etapa 2.
+Condiciones evaluadas (opcionales según la configuración):
+`duración min/max`, `sueldo min/max`, `penalización`, `modalidad`, `tipo de contrato` y
+departamentos preferidos. Los valores de contrato y modalidad se comparan normalizados
+(por ejemplo, `728` equivale a `D.L. 728`). Si se define una condición y la oferta no publica
+el dato necesario para comprobarla, la oferta se rechaza con ese motivo.
 
 > Nota de diseño: en el seed el sueldo máximo es distinto. Si un usuario configura
 > `sueldo_maximo`, ofertas por encima se REJECTan; de lo contrario no se exige.
@@ -55,15 +56,13 @@ envían emails.
 
 ## Re-evaluación
 
-`POST /matches/evaluate-all` recorre las ofertas activas de las fuentes del usuario.
-Los matches ya existentes **no se recalculan** (se cuentan en `skipped`) salvo que se
-borren de `match_results`. Para forzar recálculo de una oferta se usa
-`POST /matches/evaluate`.
+`POST /matches/evaluate` recorre las ofertas vigentes de las fuentes elegidas. Los resultados
+se reutilizan mientras la configuración guardada siga igual; al cambiarla, las ofertas se
+recalculan con las preferencias nuevas. Las convocatorias con fecha de cierre vencida se
+excluyen de la evaluación y del dashboard.
 
-## Fuerza bruta de prueba de concepto
+## Datos de demostración
 
-El seed deja dos matches REJECT que demuestran el filtro duro sin consumir IA:
-- Oferta 3: sueldo S/2000 < mínimo S/3000 del demo → REJECT.
-- Oferta 4: penalización activada + 24 meses de servicio → REJECT.
-- Oferta 5: ubicación correcta región Cusco, pero con brecha → 80% (soft, no descartada).
-- Oferta 6: alto puntaje en skills pero que exige colegiatura/años → 82% (brecha fuerte).
+Las ofertas sembradas son ejemplos estáticos y pueden tener cierres pasados. El filtro de
+vigencia las excluye una vez vencidas; para revisar coincidencias actuales, ejecuta una nueva
+búsqueda en las fuentes integradas.

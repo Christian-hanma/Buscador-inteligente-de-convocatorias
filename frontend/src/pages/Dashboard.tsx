@@ -66,7 +66,7 @@ export default function Dashboard() {
     <>
       <PageHeader
         title={`Hola, ${user?.email?.split('@')[0] ?? 'candidato'}`}
-        description="Estas son tus convocatorias evaluadas con IA."
+        description="Convocatorias vigentes que coinciden con tu perfil y tus preferencias."
         actions={
           <Button onClick={() => void searchNewOffers()} loading={evaluating}>
             Buscar convocatorias nuevas
