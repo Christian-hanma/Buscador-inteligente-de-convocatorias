@@ -1,17 +1,18 @@
-# Workflows n8n (borradores iniciales)
+# Workflows n8n
 
-Este directorio contiene los **primeros borradores** de los workflows de ingesta para n8n.
-Estado actual: `placeholder` — se documenta la intención, pero **ningún flujo está conectado
-todavía** a fuentes reales (las fuentes en la BD tienen `status = 'placeholder'`).
+Este directorio contiene workflows opcionales para ingesta programada con n8n. La búsqueda
+manual desde el dashboard consulta directamente Computrabajo y Ya Empleo; no requiere una
+cuenta n8n activa. Los workflows n8n se pueden configurar y activar si quieres ejecución
+programada.
 
 ## Cómo se conecta n8n a este sistema
 
 n8n no escribe directo en la BD. Los workflows terminan en un **webhook HTTP** del backend:
 
 ```
-POST /api/webhook/ingest
+POST /api/webhook/ingest (o /api/webhook/ingest-html)
 Headers: x-webhook-secret: <WEBHOOK_SECRET del backend>
-Body:    { "source_key": "talento-peru", "offers": [ ... ], "raw": { "url": "..." } }
+Body:    { "source": "computrabajo", "html": "..." }
 ```
 
 - El header `x-webhook-secret` debe coincidir con `WEBHOOK_SECRET` del `.env` del backend.
@@ -28,6 +29,21 @@ Body:    { "source_key": "talento-peru", "offers": [ ... ], "raw": { "url": "...
   → [HTTP Request: POST /api/webhook/ingest con x-webhook-secret]
   → [IF response.ok] → (éxito: log + resumen) / (error: HTTP Request para alerta)
 ```
+
+## Configuración de ingesta programada
+
+1. Importa `ingesta-computrabajo.json` y/o `ingesta-yaempleo.json` en n8n.
+2. En cada nodo **Enviar al backend**, cambia `x-webhook-secret` por el mismo valor de
+   `WEBHOOK_SECRET` configurado en el servicio backend de Render. No uses el valor de ejemplo.
+3. Activa los workflows para que se ejecuten según su horario. También puedes probarlos desde
+   el editor de n8n.
+4. Para una búsqueda manual, entra al dashboard y pulsa **Buscar convocatorias nuevas**;
+   n8n no participa en ese flujo.
+
+n8n Cloud ofrece una prueba temporal; la comunidad de n8n también publica una edición
+autohospedada. El software autohospedado evita la suscripción de Cloud, aunque el servidor
+donde se ejecuta puede tener costo. Para más información, consulta la [página de planes de
+n8n](https://n8n.io/pricing/).
 
 ## Importar en n8n
 

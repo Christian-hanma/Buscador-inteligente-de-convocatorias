@@ -79,7 +79,8 @@ Cada `job_source` tiene `status`:
 ```
 n8n (Schedule) → descarga portal → normaliza → POST /api/webhook/ingest
   → ingestion.service (zod + dedupe) → job_offers(status active)
-  → POST /api/matches/evaluate (sin offer_id)  (dashboard: "Evaluar ofertas")
+  → POST /api/matches/evaluate (sin offer_id), o búsqueda manual en el dashboard
+    (POST /api/matches/search consulta Computrabajo/Ya Empleo y evalúa ofertas nuevas)
   → filter.service (filtro duro) → openai/mock (si PASS) → match_results → notificacion
 ```
 

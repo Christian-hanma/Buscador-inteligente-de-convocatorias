@@ -129,5 +129,5 @@ Con el backend en producción, los workflows de `n8n-workflows/` deben apuntar a
 - 6 ofertas de prueba que ejercitan todos los escenarios del motor.
 - Filtro duro determinístico → matching IA → score → justificación → notificación por umbral.
 - Generación de CV adaptado bajo demanda, con historial de versiones.
-- Webhook de ingesta validado + workflows de n8n de ejemplo.
+- Webhook de ingesta validado + workflows de n8n opcionales para ingesta programada. La búsqueda manual del dashboard consulta directamente las fuentes integradas.
 - Las fuentes reales de scraping aún no están activas: se marcan como `placeholder`.

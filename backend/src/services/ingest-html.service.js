@@ -165,6 +165,27 @@ const PARSERS = {
   },
 };
 
+/** Descarga e ingresa ofertas desde las fuentes que el backend puede consultar directamente. */
+export async function searchIntegratedSource(sourceKey) {
+  const key = String(sourceKey ?? '').toLowerCase().trim();
+  if (!PARSERS[key]) {
+    throw new HttpError(422, `Fuente no disponible para búsqueda directa: "${key}"`);
+  }
+
+  const urls = key === 'computrabajo'
+    ? [1, 2, 3].map((page) => `https://pe.computrabajo.com/empleos-en-lima?p=${page}`)
+    : [`${YAEMPLEO_BASE}/posts`];
+  const totals = { source: key, created: 0, deduplicated: 0, errors: 0, total: 0 };
+
+  for (const url of urls) {
+    const html = await fetchHtml(url);
+    if (!html) throw new HttpError(502, `No se pudo obtener resultados de ${key}. El portal pudo bloquear la consulta; intenta más tarde.`);
+    const stats = await ingestHtml({ source: key, html });
+    for (const field of ['created', 'deduplicated', 'errors', 'total']) totals[field] += stats[field];
+  }
+  return totals;
+}
+
 export async function ingestHtml(payload) {
   const sourceKey = String(payload?.source ?? '').toLowerCase().trim();
   const parser = PARSERS[sourceKey];

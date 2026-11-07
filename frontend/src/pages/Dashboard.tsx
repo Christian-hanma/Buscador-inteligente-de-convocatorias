@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../services/api';
-import type { ConfigFiltro, EvaluateSummary, JobOffer, MatchResult } from '../services/types';
+import type { ConfigFiltro, JobOffer, MatchResult } from '../services/types';
 import { useAuth } from '../context/AuthContext';
 import { Badge, Button, Card, EmptyState, PageHeader, ProgressBar, Spinner } from '../components/ui';
 import { formatCurrency, percentTone } from '../utils/format';
@@ -31,20 +31,17 @@ export default function Dashboard() {
     void load();
   }, [load]);
 
-  async function evaluateAll() {
+  async function searchNewOffers() {
     setEvaluating(true);
     setMessage('');
     try {
-      const summary = await api.post<EvaluateSummary>('/matches/evaluate');
-      const newCount = summary.evaluated?.length ?? 0;
-      setMessage(
-        summary.skipped > 0
-          ? `Evaluación: ${newCount} nuevas, ${summary.skipped} ya evaluadas (sin gasto de IA).`
-          : `Evaluación completada (${newCount} ofertas).`
-      );
+      const result = await api.post<{ ingestions: Array<{ created?: number; deduplicated?: number; total?: number }>; evaluated: number; skipped: number }>('/matches/search');
+      const created = result.ingestions.reduce((sum, item) => sum + (item.created ?? 0), 0);
+      const found = result.ingestions.reduce((sum, item) => sum + (item.total ?? 0), 0);
+      setMessage(`Búsqueda terminada: ${created} nuevas de ${found} encontradas; ${result.evaluated} evaluadas con tus filtros.`);
       await load();
     } catch (err) {
-      setMessage(err instanceof Error ? err.message : 'Error al evaluar');
+      setMessage(err instanceof Error ? err.message : 'No se pudieron buscar nuevas convocatorias');
     } finally {
       setEvaluating(false);
     }
@@ -71,15 +68,15 @@ export default function Dashboard() {
         title={`Hola, ${user?.email?.split('@')[0] ?? 'candidato'}`}
         description="Estas son tus convocatorias evaluadas con IA."
         actions={
-          <Button onClick={() => void evaluateAll()} loading={evaluating}>
-            Evaluar ofertas ahora
+          <Button onClick={() => void searchNewOffers()} loading={evaluating}>
+            Buscar convocatorias nuevas
           </Button>
         }
       />
 
       {message && (
         <div className="mb-4">
-          <Badge tone={message.toLowerCase().includes('error') ? 'red' : 'green'}>{message}</Badge>
+          <Badge tone={/error|configurad|selecciona|workflow|n8n/i.test(message) ? 'red' : 'green'}>{message}</Badge>
         </div>
       )}
 
